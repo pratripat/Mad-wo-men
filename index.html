@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator & Scanner</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 50px;
+            padding: 30px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+        }
+        .section h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-weight: 500;
+        }
+        .file-label:hover {
+            background: #5a6fd8;
+        }
+        .qr-display {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            display: inline-block;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #218838;
+        }
+        .button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .info-text {
+            color: #6c757d;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Simple QR Code component using qrcode-generator
+        const SimpleQRCode = ({ value, size = 200 }) => {
+            const canvasRef = useRef(null);
+
+            useEffect(() => {
+                if (value && canvasRef.current) {
+                    try {
+                        const qr = qrcode(0, 'M');
+                        qr.addData(value);
+                        qr.make();
+                        
+                        const canvas = canvasRef.current;
+                        const ctx = canvas.getContext('2d');
+                        const modules = qr.getModuleCount();
+                        const cellSize = size / modules;
+                        
+                        canvas.width = size;
+                        canvas.height = size;
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        ctx.fillStyle = '#000000';
+                        for (let row = 0; row < modules; row++) {
+                            for (let col = 0; col < modules; col++) {
+                                if (qr.isDark(row, col)) {
+                                    ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error generating QR code:', error);
+                    }
+                }
+            }, [value, size]);
+
+            return <canvas ref={canvasRef} style={{ maxWidth: '100%', height: 'auto' }} />;
+        };
+
+        const QRCodeHandler = () => {
+            const [qrValue, setQrValue] = useState('');
+            const [scannedResult, setScannedResult] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+            const html5QrCodeRef = useRef(null);
+            const [scannerInitialized, setScannerInitialized] = useState(false);
+
+            // Initialize scanner safely
+            useEffect(() => {
+                try {
+                    if (!html5QrCodeRef.current && typeof Html5Qrcode !== 'undefined') {
+                        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
+                        setScannerInitialized(true);
+                    }
+                } catch (error) {
+                    console.error('Error initializing scanner:', error);
+                    setError('Scanner initialization failed. File scanning may not work.');
+                }
+            }, []);
+
+            const handleInputChange = (e) => {
+                try {
+                    const value = e.target.value;
+                    setQrValue(value);
+                    setError('');
+                    setSuccess('');
+                } catch (error) {
+                    console.error('Error handling input change:', error);
+                    setError('Error updating input');
+                }
+            };
+
+            const handleFileChange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                setScannedResult('');
+                setError('');
+                setSuccess('');
+                setIsLoading(true);
+
+                try {
+                    if (!scannerInitialized || !html5QrCodeRef.current) {
+                        throw new Error("Scanner not initialized. Please refresh the page and try again.");
+                    }
+
+                    const scanner = html5QrCodeRef.current;
+                    const decodedText = await scanner.scanFile(file, true);
+                    
+                    if (decodedText && decodedText.trim()) {
+                        setScannedResult(decodedText);
+                        setSuccess('QR code scanned successfully!');
+                    } else {
+                        throw new Error('No QR code found in the image');
+                    }
+                } catch (err) {
+                    console.error("Error scanning QR code:", err);
+                    if (err.message.includes('No QR code found') || err.message.includes('QR code parse error')) {
+                        setError('No valid QR code detected in this image. Please try another image.');
+                    } else if (err.message.includes('Scanner not initialized')) {
+                        setError('Scanner not ready. Please refresh the page and try again.');
+                    } else {
+                        setError('Could not scan QR code. Please ensure the image contains a clear QR code.');
+                    }
+                } finally {
+                    setIsLoading(false);
+                    // Clear the file input to allow re-uploading the same file
+                    e.target.value = '';
+                }
+            };
+
+            const clearAll = () => {
+                setQrValue('');
+                setScannedResult('');
+                setError('');
+                setSuccess('');
+                setIsLoading(false);
+            };
+
+            const downloadQR = () => {
+                if (!qrValue) return;
+                
+                try {
+                    const canvas = document.querySelector('canvas');
+                    if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = 'qr-code.png';
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    }
+                } catch (error) {
+                    console.error('Error downloading QR code:', error);
+                    setError('Failed to download QR code. Please try again.');
+                }
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🔍 QR Code Generator & Scanner</h1>
+                        <p>Create QR codes and scan them from images</p>
+                    </div>
+                    <div className="content">
+                        <div className="section">
+                            <h2>📱 Create a QR Code</h2>
+                            <input
+                                type="text"
+                                value={qrValue}
+                                onChange={handleInputChange}
+                                placeholder="Enter text, URL, or any data to encode..."
+                                className="input-field"
+                            />
+                            <p className="info-text">
+                                Enter any text, URL, contact information, or other data you want to encode.
+                            </p>
+                            {qrValue && (
+                                <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                                    <div className="qr-display">
+                                        <SimpleQRCode value={qrValue} size={200} />
+                                    </div>
+                                    <button className="button" onClick={downloadQR} style={{ marginTop: '15px' }}>
+                                        📥 Download QR Code
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="section">
+                            <h2>📷 Scan a QR Code</h2>
+                            <p className="info-text">
+                                Upload an image containing a QR code to scan and decode its contents.
+                            </p>
+                            <label className="file-label">
+                                📁 Choose Image File
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="file-input"
+                                    disabled={isLoading}
+                                />
+                            </label>
+
+                            {isLoading && (
+                                <div className="result-box loading">🔄 Scanning... Please wait.</div>
+                            )}
+                            
+                            {error && (
+                                <div className="result-box error">❌ {error}</div>
+                            )}
+                            
+                            {success && (
+                                <div className="result-box success">✅ {success}</div>
+                            )}
+                            
+                            {scannedResult && (
+                                <div className="result-box success">
+                                    <h3>📋 Scanned Result:</h3>
+                                    <p style={{ wordBreak: 'break-all', fontSize: '16px' }}>{scannedResult}</p>
+                                </div>
+                            )}
+                            
+                            <div id="qr-reader" style={{ display: 'none' }}></div>
+                        </div>
+
+                        <div style={{ textAlign: 'center' }}>
+                            <button className="button" onClick={clearAll} style={{ background: '#dc3545' }}>
+                                🗑️ Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<QRCodeHandler />, document.getElementById('root'));
+    </script>
+</body>
+</html>

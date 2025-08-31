@@ -3,6 +3,8 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+yarn.lock
 
 # Environment variables
 .env
@@ -10,7 +12,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-env.example
+.env.example
 
 # Hardhat
 cache/
@@ -148,3 +150,49 @@ coverage/
 
 # Local development
 .local/
+
+# Frontend specific
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# Backend specific
+backend/uploads/
+backend/logs/
+backend/temp/
+
+# MongoDB data
+data/
+mongodb/
+
+# Hardhat specific
+hardhat-deployments/
+deployments/
+
+# Contract verification
+contracts-verified/
+
+# Local blockchain
+ganache-cli/
+anvil/
+
+# Node modules in subdirectories
+**/node_modules/
+
+# Environment files in subdirectories
+**/.env*
+
+# Log files in subdirectories
+**/*.log
+
+# Build outputs in subdirectories
+**/dist/
+**/build/
+
+# IDE files in subdirectories
+**/.vscode/
+**/.idea/
+
+# OS files in subdirectories
+**/.DS_Store
+**/Thumbs.db
